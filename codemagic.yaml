@@ -9,7 +9,20 @@ workflows:
     scripts:
       - name: Get Flutter dependencies
         script: flutter pub get
+
+      - name: Patch isar_flutter_libs to support AGP 8+
+        script: |
+          echo "Patching isar_flutter_libs build.gradle to add namespace..."
+          PLUGIN_DIR="$HOME/.pub-cache/hosted/pub.dev/isar_flutter_libs-3.1.0+1/android"
+          if [ -f "$PLUGIN_DIR/build.gradle" ]; then
+            sed -i '/^android {/a \    namespace "com.isar.flutter.libs"' "$PLUGIN_DIR/build.gradle"
+            echo "Patch complete."
+          else
+            echo "isar_flutter_libs not found — skipping patch"
+          fi
+
       - name: Build APK
         script: flutter build apk --debug
+
     artifacts:
       - build/app/outputs/flutter-apk/app-debug.apk
