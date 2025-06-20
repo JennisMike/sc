@@ -4,25 +4,24 @@ workflows:
     max_build_duration: 60
     environment:
       flutter: stable
-      xcode: latest
       android: true
     scripts:
       - name: Get Flutter dependencies
         script: flutter pub get
 
-      - name: Patch isar_flutter_libs to support AGP 8+
+      - name: Patch isar_flutter_libs build.gradle with namespace
         script: |
-          echo "Patching isar_flutter_libs build.gradle to add namespace..."
-          PLUGIN_DIR="$HOME/.pub-cache/hosted/pub.dev/isar_flutter_libs-3.1.0+1/android"
-          if [ -f "$PLUGIN_DIR/build.gradle" ]; then
-            sed -i '/^android {/a \    namespace "com.isar.flutter.libs"' "$PLUGIN_DIR/build.gradle"
-            echo "Patch applied. Showing updated build.gradle:"
-            cat "$PLUGIN_DIR/build.gradle"
+          echo "Patching isar_flutter_libs..."
+          ISAR_DIR="$HOME/.pub-cache/hosted/pub.dev/isar_flutter_libs-3.1.0+1/android"
+          FILE="$ISAR_DIR/build.gradle"
+          if grep -q 'namespace' "$FILE"; then
+            echo "Namespace already set, skipping patch."
           else
-            echo "isar_flutter_libs not found — skipping patch"
+            sed -i '/^android {/a \    namespace "com.isar.flutter.libs"' "$FILE"
+            echo "Namespace inserted into isar_flutter_libs build.gradle"
           fi
 
-      - name: Build AAB
+      - name: Build Android App Bundle
         script: flutter build appbundle --debug
 
     artifacts:
