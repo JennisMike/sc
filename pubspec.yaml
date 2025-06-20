@@ -1,0 +1,128 @@
+name: swap_chat_leancloud
+description: A new Flutter project.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.2
+  intl: ^0.20.2
+  rxdart: ^0.28.0
+  shared_preferences: ^2.2.3
+  image_picker: ^1.1.2
+  supabase_flutter: ^2.3.4
+  http: ^1.1.0
+  flutter_dotenv: ^5.1.0
+  path_provider: ^2.1.0
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+
+  # State management
+  flutter_riverpod: ^2.4.9
+
+  # Logging
+  logger: ^2.0.2
+
+  # Local database for caching
+  isar: ^3.1.0+1
+  isar_flutter_libs: ^3.1.0+1
+
+  # Image caching
+  cached_network_image: ^3.3.0
+
+  # Required for json_serializable
+  json_annotation: ^4.8.1
+  flutter_local_notifications: ^19.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+  # JSON and build tools
+  json_serializable: ^6.7.1
+  build_runner: ^2.4.6
+  source_gen: ^1.5.0
+
+  # Isar generators
+  isar_generator: ^3.1.0+1
+
+  # Hive generators
+  hive_generator: ^2.0.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - .env
+
+
+
+
+
+# name: swap_chat_leancloud
+# description: A new Flutter project.
+# publish_to: 'none'
+# version: 1.0.0+1
+
+# environment:
+#   sdk: '>=3.0.0 <4.0.0'
+
+# dependencies:
+#   flutter:
+#     sdk: flutter
+#   cupertino_icons: ^1.0.2
+#   intl: ^0.20.2
+#   rxdart: ^0.28.0
+#   shared_preferences: ^2.2.3
+#   image_picker: ^1.1.2
+#   # fluwx: ^3.13.0
+#   supabase_flutter: ^2.3.4
+#   http: ^1.1.0
+#   # path_provider: ^2.1.1
+#   # leancloud_storage: ^0.7.10
+#   flutter_dotenv: ^5.1.0
+#   path_provider: ^2.1.0
+#   hive: ^2.2.3
+#   hive_flutter: ^1.1.0
+
+#   # State management
+#   flutter_riverpod: ^2.4.9
+
+#   # Logging
+#   logger: ^2.0.2
+
+#   # Local database for caching
+#   isar: ^3.1.0+1
+#   isar_flutter_libs: ^3.1.0+1
+
+#   # New dependencies
+#   cached_network_image: ^3.3.0
+
+# dev_dependencies:
+#   flutter_test:
+#     sdk: flutter
+#   flutter_lints: ^5.0.0
+#   json_serializable: ^4.1.4
+
+#   # Isar generators
+#   isar_generator: ^3.1.0+1
+#   build_runner: ^2.4.7
+
+#   # Hive generators
+#   hive_generator: ^2.0.1
+
+# dependency_overrides:
+#   build_resolvers: ^2.0.4
+#   source_gen: ^1.2.7
+#   json_annotation: ^4.0.1
+#   # fluwx: ^3.13.0
+#   logging: 1.1.1
+
+# flutter:
+#   uses-material-design: true
+#   assets:
+#     - .env

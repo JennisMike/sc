@@ -1,0 +1,624 @@
+import 'package:flutter/material.dart';
+import 'main_navigation.dart';
+import 'package:intl/intl.dart';
+
+// Mock offer data model
+class Offer {
+  final String user;
+  final String avatarUrl;
+  final String message;
+  final String rate;
+  final String time;
+  Offer({required this.user, required this.avatarUrl, required this.message, required this.rate, required this.time});
+}
+
+class MarketplaceScreen extends StatefulWidget {
+  const MarketplaceScreen({super.key});
+  @override
+  State<MarketplaceScreen> createState() => _MarketplaceScreenState();
+}
+
+class _MarketplaceScreenState extends State<MarketplaceScreen> with SingleTickerProviderStateMixin {
+  final String currentUser = 'Alice'; // Mock current user
+  final double walletBalance = 50000.0; // Mock wallet balance
+  final List<Offer> offers = [
+    Offer(user: 'Alice', avatarUrl: '', message: 'Need RMB for 100,000 FCFA', rate: '10%', time: '09:30'),
+    Offer(user: 'Bob', avatarUrl: '', message: 'Need FCFA for 500 RMB', rate: '9%', time: '09:32'),
+    Offer(user: 'Carol', avatarUrl: '', message: 'RMB available 11%', rate: '11%', time: '09:35'),
+  ];
+
+  // Offer building state
+  String offerType = '';
+  String amount = '';
+  String rate = '';
+  bool isPanelOpen = false;
+  List<String> offerSteps = [];
+  String? amountError;
+  String? rateError;
+
+  late AnimationController _panelController;
+  late Animation<double> _panelAnimation;
+  late final NumberFormat _numberFormat;
+  late final TextEditingController _amountController;
+  late final TextEditingController _rateController;
+
+  @override
+  void initState() {
+    super.initState();
+    _numberFormat = NumberFormat('#,###');
+    _amountController = TextEditingController();
+    _rateController = TextEditingController();
+    _panelController = AnimationController(vsync: this, duration: const Duration(milliseconds: 250));
+    _panelAnimation = CurvedAnimation(parent: _panelController, curve: Curves.easeOut);
+  }
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    _rateController.dispose();
+    _panelController.dispose();
+    super.dispose();
+  }
+
+  void openPanel() {
+    setState(() => isPanelOpen = true);
+    _panelController.forward();
+  }
+
+  void closePanel() {
+    _panelController.reverse().then((_) {
+      setState(() => isPanelOpen = false);
+    });
+  }
+
+  void clearOffer() {
+    setState(() {
+      offerType = '';
+      amount = '';
+      rate = '';
+      offerSteps.clear();
+      amountError = null;
+      rateError = null;
+    });
+  }
+
+  void backStep() {
+    setState(() {
+      if (offerSteps.isNotEmpty) {
+        String last = offerSteps.removeLast();
+        if (last == 'rate') rate = '';
+        else if (last == 'amount') amount = '';
+        else if (last == 'type') offerType = '';
+        amountError = null;
+        rateError = null;
+      }
+    });
+  }
+
+  void selectType(String type) {
+    setState(() {
+      offerType = type;
+      offerSteps.add('type');
+    });
+  }
+
+  void setAmount(String amt) {
+    String raw = amt.replaceAll(',', '');
+    if (raw.isNotEmpty) {
+      final value = double.tryParse(raw);
+      if (value != null) {
+        final formatted = this._numberFormat.format(value);
+        if (amount != formatted) {
+          amount = formatted;
+        }
+      }
+    }
+    setState(() {
+      amountError = null;
+      if (raw.isEmpty) {
+        amountError = 'Enter an amount';
+      } else {
+        final value = double.tryParse(raw);
+        if (value == null || value <= 0) {
+          amountError = 'Enter a valid amount';
+        } else if (offerType == 'RMB available' && value > 5000) {
+          amountError = 'Max amount is 5000 RMB';
+        } else if ((offerType == 'Need RMB') && value > walletBalance) {
+          amountError = 'Insufficient wallet balance';
+        }
+      }
+      if (amountError == null && !offerSteps.contains('amount')) {
+        offerSteps.add('amount');
+      }
+      if (amountError != null) {
+        if (offerSteps.contains('amount')) offerSteps.remove('amount');
+      }
+    });
+  }
+
+  void setRate(String r) {
+    if (r.isNotEmpty && !r.endsWith('%')) {
+      r = r.replaceAll('%', '') + '%';
+    }
+    if (rate != r) {
+      rate = r;
+    }
+    setState(() {
+      rateError = null;
+      String raw = r.replaceAll('%', '');
+      if (offerType == 'RMB available' && raw.isEmpty) {
+        rateError = 'Enter a rate';
+      } else if (raw.isNotEmpty) {
+        final value = double.tryParse(raw);
+        if (value == null || value <= 0) {
+          rateError = 'Enter a valid rate';
+        } else if (value > 20) {
+          rateError = 'Max rate is 20%';
+        }
+      }
+      if (rateError == null && !offerSteps.contains('rate')) {
+        offerSteps.add('rate');
+      }
+      if (rateError != null) {
+        if (offerSteps.contains('rate')) offerSteps.remove('rate');
+      }
+    });
+  }
+
+  String get builtMessage {
+    if (offerType.isEmpty) return '';
+    if (offerType == 'RMB available') {
+      String msg = 'RMB available';
+      if (amount.isNotEmpty && amountError == null) msg += ', ${this._numberFormat.format(double.tryParse(amount) ?? 0)} RMB max';
+      if (rate.isNotEmpty && rateError == null) msg += ', ${rate}';
+      return msg;
+    }
+    String msg = offerType;
+    if (amount.isNotEmpty && amountError == null) msg += ' for ${this._numberFormat.format(double.tryParse(amount) ?? 0)}';
+    if (rate.isNotEmpty && rateError == null) msg += ' (${rate})';
+    return msg;
+  }
+
+  bool get canSend =>
+    (offerType == 'RMB available'
+      ? amount.isNotEmpty && rate.isNotEmpty && amountError == null && rateError == null
+      : offerType.isNotEmpty && amount.isNotEmpty && amountError == null && (rate.isEmpty || rateError == null));
+
+  Future<bool> _onWillPop() async {
+    if (isPanelOpen) {
+      closePanel();
+      return false;
+    }
+    return true;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final panelHeight = 280.0;
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: Stack(
+        children: [
+          // Offer feed
+          ListView.builder(
+            padding: EdgeInsets.only(bottom: isPanelOpen ? panelHeight + 70 : 90),
+            itemCount: offers.length,
+            itemBuilder: (context, index) {
+              final offer = offers[index];
+              final isMine = offer.user == currentUser;
+              return OfferBubble(offer: offer, isMine: isMine);
+            },
+          ),
+          // Animated input bar
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOut,
+            left: 0,
+            right: 0,
+            bottom: isPanelOpen ? panelHeight : 0,
+            child: OfferInputBar(
+              message: builtMessage,
+              onTap: openPanel,
+              onSend: canSend ? _handleSendOffer : null,
+              canSend: canSend,
+            ),
+          ),
+          // Custom animated panel
+          if (isPanelOpen)
+            AnimatedBuilder(
+              animation: _panelAnimation,
+              builder: (context, child) {
+                return Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  height: panelHeight * _panelAnimation.value,
+                  child: child!,
+                );
+              },
+              child: CustomAnimatedPanel(
+                offerType: offerType,
+                amount: amount,
+                rate: rate,
+                amountError: amountError,
+                rateError: rateError,
+                walletBalance: walletBalance,
+                onType: selectType,
+                onAmount: setAmount,
+                onRate: setRate,
+                onBack: offerSteps.isNotEmpty ? backStep : null,
+                onClear: (offerType.isNotEmpty || amount.isNotEmpty || rate.isNotEmpty) ? clearOffer : null,
+                onClose: closePanel,
+                amountController: _amountController,
+                rateController: _rateController,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _handleSendOffer() {
+    // ... your offer posting logic ...
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Offer posted successfully!')),
+    );
+    // ... clear offer builder, close panel, etc ...
+  }
+}
+
+// Reusable offer bubble widget
+class OfferBubble extends StatelessWidget {
+  final Offer offer;
+  final bool isMine;
+  const OfferBubble({super.key, required this.offer, required this.isMine});
+  @override
+  Widget build(BuildContext context) {
+    final bubbleColor = isMine ? kAccentColor.withOpacity(0.85) : kPrimaryColor.withOpacity(0.08);
+    final textColor = isMine ? Colors.white : kTextColor;
+    final align = isMine ? Alignment.centerRight : Alignment.centerLeft;
+    final borderRadius = isMine
+        ? const BorderRadius.only(
+            topLeft: Radius.circular(16),
+            topRight: Radius.circular(16),
+            bottomLeft: Radius.circular(16),
+            bottomRight: Radius.circular(4),
+          )
+        : const BorderRadius.only(
+            topLeft: Radius.circular(16),
+            topRight: Radius.circular(16),
+            bottomLeft: Radius.circular(4),
+            bottomRight: Radius.circular(16),
+          );
+    return Align(
+      alignment: align,
+      child: Container(
+        margin: EdgeInsets.only(
+          left: isMine ? 60 : 12,
+          right: isMine ? 12 : 60,
+          top: 6,
+          bottom: 6,
+        ),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: bubbleColor,
+          borderRadius: borderRadius,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (!isMine)
+              CircleAvatar(
+                backgroundColor: kAccentColor,
+                child: Text(offer.user[0]),
+              ),
+            if (!isMine) const SizedBox(width: 10),
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (!isMine)
+                    Text(offer.user, style: TextStyle(fontWeight: FontWeight.bold, color: kPrimaryColor)),
+                  if (!isMine) const SizedBox(height: 2),
+                  Text(offer.message, style: TextStyle(color: textColor, fontSize: 16)),
+                  const SizedBox(height: 4),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisAlignment: isMine ? MainAxisAlignment.end : MainAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isMine ? Colors.white24 : kAccentColor.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(offer.rate, style: TextStyle(color: isMine ? Colors.white : kAccentColor, fontWeight: FontWeight.bold)),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        offer.time,
+                        style: TextStyle(
+                          color: isMine ? Colors.white70 : Colors.grey[600],
+                          fontSize: 12,
+                        ),
+                        textAlign: isMine ? TextAlign.right : TextAlign.left,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Polished input bar widget (no avatar, just message and send)
+class OfferInputBar extends StatelessWidget {
+  final String message;
+  final VoidCallback onTap;
+  final VoidCallback? onSend;
+  final bool canSend;
+  const OfferInputBar({super.key, required this.message, required this.onTap, this.onSend, required this.canSend});
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      elevation: 8,
+      color: Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: onTap,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: kBackgroundColor,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: kPrimaryColor.withOpacity(0.2)),
+                  ),
+                  child: Text(
+                    message.isEmpty ? 'Tap to create an offer...' : message,
+                    style: TextStyle(color: kTextColor, fontSize: 16),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton(
+              icon: Icon(Icons.send, color: canSend ? kAccentColor : Colors.grey),
+              onPressed: canSend ? onSend : null,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Polished custom animated panel for offer building
+class CustomAnimatedPanel extends StatelessWidget {
+  final String offerType;
+  final String amount;
+  final String rate;
+  final String? amountError;
+  final String? rateError;
+  final double walletBalance;
+  final ValueChanged<String> onType;
+  final ValueChanged<String> onAmount;
+  final ValueChanged<String> onRate;
+  final VoidCallback? onBack;
+  final VoidCallback? onClear;
+  final VoidCallback onClose;
+  final TextEditingController amountController;
+  final TextEditingController rateController;
+  const CustomAnimatedPanel({
+    Key? key,
+    required this.offerType,
+    required this.amount,
+    required this.rate,
+    required this.amountError,
+    required this.rateError,
+    required this.walletBalance,
+    required this.onType,
+    required this.onAmount,
+    required this.onRate,
+    this.onBack,
+    this.onClear,
+    required this.onClose,
+    required this.amountController,
+    required this.rateController,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    return Material(
+      elevation: 16,
+      color: Colors.white,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      child: Stack(
+        children: [
+          Padding(
+            padding: EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 70 + bottomInset),
+            child: SingleChildScrollView(
+              physics: ClampingScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header row
+                  Row(
+                    children: [
+                      Text('Build Offer', style: TextStyle(fontWeight: FontWeight.bold, color: kPrimaryColor, fontSize: 18)),
+                      const Spacer(),
+                      IconButton(
+                        icon: Icon(Icons.keyboard_arrow_down, color: kPrimaryColor, size: 32),
+                        onPressed: onClose,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  // Offer type chips
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      ChoiceChip(
+                        label: Text('Need RMB'),
+                        selected: offerType == 'Need RMB',
+                        onSelected: (_) => onType('Need RMB'),
+                      ),
+                      ChoiceChip(
+                        label: Text('Need FCFA'),
+                        selected: offerType == 'Need FCFA',
+                        onSelected: (_) => onType('Need FCFA'),
+                      ),
+                      ChoiceChip(
+                        label: Text('RMB available'),
+                        selected: offerType == 'RMB available',
+                        onSelected: (_) => onType('RMB available'),
+                      ),
+                    ],
+                  ),
+                  // Show fields only if an offer type is selected
+                  if (offerType.isNotEmpty) ...[
+                    const SizedBox(height: 18),
+                    Text(
+                      offerType == 'RMB available' ? 'Max Amount and Rate' : 'Amount and Rate',
+                      style: TextStyle(fontWeight: FontWeight.bold, color: kPrimaryColor),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: amountController,
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              hintText: offerType == 'RMB available'
+                                  ? 'Max amount (max 5000 RMB)'
+                                  : (offerType == 'Need RMB'
+                                      ? 'Enter amount (max ${walletBalance.toStringAsFixed(0)})'
+                                      : 'Enter amount'),
+                              errorText: amountError,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: amountError != null ? Colors.red : Colors.grey),
+                              ),
+                            ),
+                            onChanged: onAmount,
+                            enabled: true,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: rateController,
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              hintText: offerType == 'RMB available' ? 'Rate % (required)' : 'Rate % (Optional)',
+                              errorText: rateError,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: rateError != null ? Colors.red : Colors.grey),
+                              ),
+                            ),
+                            onChanged: onRate,
+                            enabled: true,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          // Fixed Back and Clear buttons at the bottom right
+          Positioned(
+            right: 20,
+            bottom: 20 + bottomInset,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (onBack != null)
+                  ElevatedButton.icon(
+                    icon: Icon(Icons.arrow_back, color: kPrimaryColor),
+                    label: Text('Back', style: TextStyle(color: kPrimaryColor)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kBackgroundColor,
+                      elevation: 0,
+                      side: BorderSide(color: kPrimaryColor.withOpacity(0.2)),
+                    ),
+                    onPressed: onBack,
+                  ),
+                const SizedBox(width: 8),
+                if (onClear != null)
+                  ElevatedButton.icon(
+                    icon: Icon(Icons.clear, color: kErrorColor),
+                    label: Text('Clear', style: TextStyle(color: kErrorColor)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kBackgroundColor,
+                      elevation: 0,
+                      side: BorderSide(color: kErrorColor.withOpacity(0.2)),
+                    ),
+                    onPressed: onClear,
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Add a reusable ShakeWidget
+class ShakeWidget extends StatefulWidget {
+  final Widget child;
+  final bool shake;
+  const ShakeWidget({Key? key, required this.child, required this.shake}) : super(key: key);
+  @override
+  State<ShakeWidget> createState() => _ShakeWidgetState();
+}
+
+class _ShakeWidgetState extends State<ShakeWidget> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _offsetAnimation;
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(duration: const Duration(milliseconds: 350), vsync: this);
+    _offsetAnimation = Tween(begin: 0.0, end: 16.0).chain(CurveTween(curve: Curves.elasticIn)).animate(_controller);
+  }
+  @override
+  void didUpdateWidget(covariant ShakeWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.shake && !oldWidget.shake) {
+      _controller.forward(from: 0);
+    }
+  }
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Transform.translate(
+          offset: Offset(_offsetAnimation.value, 0),
+          child: child,
+        );
+      },
+      child: widget.child,
+    );
+  }
+} 
