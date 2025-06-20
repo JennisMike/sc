@@ -1,6 +1,6 @@
 workflows:
   flutter-android:
-    name: Flutter Android Build
+    name: Flutter Android AAB Build
     max_build_duration: 60
     environment:
       flutter: stable
@@ -22,8 +22,8 @@ workflows:
             echo "isar_flutter_libs not found — skipping patch"
           fi
 
-      - name: Build APK
-        script: flutter build apk --debug
+      - name: Build AAB
+        script: flutter build appbundle --debug
 
     artifacts:
-      - build/app/outputs/flutter-apk/app-debug.apk
+      - build/app/outputs/bundle/debug/app-debug.aab
